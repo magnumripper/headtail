@@ -112,6 +112,8 @@ int usage(char *name)
 	puts("ten lines, followed by \"(... n lines snipped ...)\" on a separate line, then");
 	puts("last ten lines.");
 	puts("\nIf no file name is given, standard input is used.");
+	puts("\nUnlike 'head' and 'tail', this tools adds a final LF in case the last line");
+	puts("printed was lacking it.");
 
 	return EXIT_SUCCESS;
 }

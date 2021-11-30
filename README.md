@@ -16,6 +16,9 @@ ten lines, followed by "(... n lines snipped ...)" on a separate line, then
 last ten lines.
 
 If no file name is given, standard input is used.
+
+Unlike 'head' and 'tail', this tools adds a final LF in case the last line
+printed was lacking it.
 ```
 
 ## Build dependencies
