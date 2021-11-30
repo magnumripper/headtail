@@ -58,6 +58,7 @@ static int process_file(char *name, int show_line_nos, int show_header)
 		if (len < 0) {
 			if (ferror(fh)) {
 				print_error("headtail: %s", name);
+				fclose(fh);
 				return EXIT_FAILURE;
 			}
 			break;
@@ -96,6 +97,7 @@ static int process_file(char *name, int show_line_nos, int show_header)
 		}
 	}
 
+	fclose(fh);
 	return EXIT_SUCCESS;
 }
 
