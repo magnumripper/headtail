@@ -31,7 +31,7 @@ static void print_error(const char *format, ...)
 	fprintf(stderr, ": %s\n", strerror(errno));
 }
 
-static int process_file(char *name, int show_line_nos)
+static int process_file(char *name, int show_line_nos, int show_header)
 {
 	FILE *fh;
 	char *buf[11] = { NULL };
@@ -46,6 +46,9 @@ static int process_file(char *name, int show_line_nos)
 			return EXIT_FAILURE;
 		}
 	}
+
+	if (show_header)
+		printf("==> %s <==\n", name);
 
 	while (!feof(fh)) {
 		ssize_t len;
@@ -131,20 +134,17 @@ int main(int argc, char **argv)
 	argc -= optind;
 	argv += optind;
 
-	if (!argc)
-		return process_file("-", show_line_nos);
+	int show_header = (argc > 1);
 
-	if (argc > 1)
-		printf("==> %s <==\n", *argv);
+	if (!argc)
+		return process_file("-", show_line_nos, show_header);
 
 	while (*argv) {
 		int ret;
 
-		ret = process_file(*argv++, show_line_nos);
+		ret = process_file(*argv++, show_line_nos, show_header);
 		if (ret != EXIT_SUCCESS)
 			exit_ret = ret;
-		if (*argv)
-			printf("\n==> %s <==\n", *argv);
 	}
 
 	return exit_ret;
