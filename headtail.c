@@ -1,9 +1,8 @@
 /*
  * headtail(1) utility
  *
- * If file is at most 21 lines, just print the whole file.  If it is longer,
- * print first 10 lines, followed by "(... n lines snipped ...)" on a separate
- * line, then the last 10 lines.
+ * Works similar to 'head' and 'tail' on each file but does both at once, even for
+ * stdin (which is impossible with head/tail).
  *
  * This code is Copyright (c) 2021 magnum, and it is hereby released to the
  * general public under the following terms:
@@ -20,6 +19,28 @@
 
 #define MIN(a, b)	((a) < (b) ? (a) : (b))
 
+#define mem_free(ptr)	do { \
+		if (ptr) { \
+			free(ptr); \
+			(ptr) = NULL; \
+		} \
+	} while(0);
+
+static void *mem_calloc(size_t nmemb, size_t size)
+{
+	void *res;
+
+	if (!nmemb || !size)
+		return NULL;
+
+	if (!(res = calloc(nmemb, size))) {
+		fprintf(stderr, "mem_calloc(): %s trying to allocate %zu bytes\n", strerror(ENOMEM), nmemb * size);
+		exit(EXIT_FAILURE);
+	}
+
+	return res;
+}
+
 static void print_error(const char *format, ...)
 {
 	va_list args;
@@ -31,11 +52,11 @@ static void print_error(const char *format, ...)
 	fprintf(stderr, ": %s\n", strerror(errno));
 }
 
-static int process_file(char *name, int show_line_nos, int show_header)
+static int process_file(char *name, int num_lines, int show_line_nos, int show_header)
 {
 	FILE *fh;
-	char *buf[11] = { NULL };
-	size_t size[11] = { 0 };
+	char **buf = mem_calloc(sizeof(char*), num_lines + 1);
+	size_t *size = mem_calloc(sizeof(size_t), num_lines + 1);
 	int i, line = 0, mod = 0;
 
 	if (!strcmp(name, "-")) {
@@ -43,6 +64,8 @@ static int process_file(char *name, int show_line_nos, int show_header)
 	} else {
 		if (!(fh = fopen(name, "r"))) {
 			print_error("headtail: %s", name);
+			mem_free(buf);
+			mem_free(size);
 			return EXIT_FAILURE;
 		}
 	}
@@ -59,37 +82,41 @@ static int process_file(char *name, int show_line_nos, int show_header)
 			if (ferror(fh)) {
 				print_error("headtail: %s", name);
 				fclose(fh);
+				mem_free(buf);
+				mem_free(size);
 				return EXIT_FAILURE;
 			}
 			break;
 		}
-		if (line++ < 10) {
+		if (line++ < num_lines) {
 			if (show_line_nos)
 				printf("%6d: ", line);
 			printf("%s%s", buf[mod], (buf[mod][len - 1] == '\n') ? "" : "\n");
 			fflush(stdout);
 		}
 
-		if (line == 22) {
+		if (line == 2 * num_lines + 2) {
 			printf("(...");
 			fflush(stdout);
 		}
 
-		if (++mod >= 11)
+		if (++mod >= num_lines + 1)
 			mod = 0;
 	}
 
-	int num_tail = MIN(10, line - 10);
+	int num_tail = MIN(num_lines, line - num_lines);
 
-	if (line == 21)
-		num_tail = 11;
-	else if (line > 21)
-		printf(" %d lines snipped ...)\n", line - num_tail - 10);
+	/* Instead of outputting "1 line skipped", we might just as well output that line */
+	if (line == 2 * num_lines + 1)
+		num_tail += 1;
 
-	if (line > 10) {
+	if (line > 2 * num_lines + 1)
+		printf(" %d lines skipped ...)\n", line - num_lines - num_tail);
+
+	if (line > num_lines) {
 		for (i = 0; i < num_tail; i++) {
 			int n = line - num_tail + i;
-			int nmod = n % 11;
+			int nmod = n % (num_lines + 1);
 
 			if (show_line_nos)
 				printf("%6d: ", n + 1);
@@ -97,7 +124,10 @@ static int process_file(char *name, int show_line_nos, int show_header)
 		}
 	}
 
+	fflush(stdout);
 	fclose(fh);
+	mem_free(buf);
+	mem_free(size);
 	return EXIT_SUCCESS;
 }
 
@@ -105,17 +135,21 @@ int usage(char *name)
 {
 	printf("Usage: %s [OPTION] [FILE]...\n", name);
 	puts("\nOptions:");
-	puts("  -n  show line numbers");
-	puts("  -h  this help");
+	puts("  -n <num>   max. number of head and tail lines (default 10)");
+	puts("  -l         show line numbers");
+	puts("  -q         never output filename headers");
+	puts("  -h         this help");
 	puts("\nHeadTail utility (c) magnum 2021");
-	puts("\nWorks like 'head' and 'tail' on each file but does both at once, even for");
+	puts("\nWorks similar to 'head' and 'tail' on each file but does both at once, even for");
 	puts("stdin (which is impossible with head/tail).");
-	puts("If file is at most 21 lines, print whole file.  If it is longer, print first");
-	puts("ten lines, followed by \"(... n lines snipped ...)\" on a separate line, then");
-	puts("last ten lines.");
+	puts("If file is at most 21 lines (using defaults), just output the whole file.  If");
+	puts("it is longer, output the head followed by \"(... n lines skipped ...)\" on a");
+	puts("separate line, then the tail.");
+	puts("\nWe'll never skip a single line because outputting \"1 line skipped\" would take");
+	puts("the same screen estate, that's the reason for \"at most 21 lines\" above.");
 	puts("\nIf no file name is given, standard input is used.");
 	puts("\nUnlike 'head' and 'tail', this tools adds a final LF in case the last line");
-	puts("printed was lacking it.");
+	puts("was lacking it.");
 
 	return EXIT_SUCCESS;
 }
@@ -124,10 +158,22 @@ int main(int argc, char **argv)
 {
 	int c, show_line_nos = 0;
 	int exit_ret = EXIT_SUCCESS;
+	int quiet = 0;
+	int num_lines = 10;
 
-	while ((c = getopt(argc, argv, "nh")) != -1) {
+	while ((c = getopt(argc, argv, "n:qlh")) != -1) {
 		switch (c) {
 		case 'n':
+			sscanf(optarg, "%i", &num_lines);
+			if (num_lines <= 0) {
+				usage(argv[0]);
+				exit(EXIT_FAILURE);
+			}
+			break;
+		case 'q':
+			quiet = 1;
+			break;
+		case 'l':
 			show_line_nos = 1;
 			break;
 		case 'h':
@@ -138,15 +184,15 @@ int main(int argc, char **argv)
 	argc -= optind;
 	argv += optind;
 
-	int show_header = (argc > 1);
+	int show_header = (!quiet && argc > 1);
 
 	if (!argc)
-		return process_file("-", show_line_nos, show_header);
+		return process_file("-", num_lines, show_line_nos, show_header);
 
 	while (*argv) {
 		int ret;
 
-		ret = process_file(*argv++, show_line_nos, show_header);
+		ret = process_file(*argv++, num_lines, show_line_nos, show_header);
 		if (ret != EXIT_SUCCESS)
 			exit_ret = ret;
 	}
