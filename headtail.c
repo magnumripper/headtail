@@ -15,8 +15,21 @@
 #include <string.h>
 #include <stdlib.h>
 #include <unistd.h>
+#include <stdarg.h>
+#include <errno.h>
 
 #define MIN(a, b)	((a) < (b) ? (a) : (b))
+
+static void print_error(const char *format, ...)
+{
+	va_list args;
+
+	va_start(args, format);
+	vfprintf(stderr, format, args);
+	va_end(args);
+
+	fprintf(stderr, ": %s\n", strerror(errno));
+}
 
 static int process_file(char *name, int show_line_nos)
 {
@@ -29,7 +42,7 @@ static int process_file(char *name, int show_line_nos)
 		fh = stdin;
 	} else {
 		if (!(fh = fopen(name, "r"))) {
-			perror("fopen");
+			print_error("headtail: %s", name);
 			return EXIT_FAILURE;
 		}
 	}
@@ -41,7 +54,7 @@ static int process_file(char *name, int show_line_nos)
 
 		if (len < 0) {
 			if (ferror(fh)) {
-				perror("Error");
+				print_error("headtail: %s", name);
 				return EXIT_FAILURE;
 			}
 			break;
@@ -103,6 +116,7 @@ int usage(char *name)
 int main(int argc, char **argv)
 {
 	int c, show_line_nos = 0;
+	int exit_ret = EXIT_SUCCESS;
 
 	while ((c = getopt(argc, argv, "nh")) != -1) {
 		switch (c) {
@@ -128,10 +142,10 @@ int main(int argc, char **argv)
 
 		ret = process_file(*argv++, show_line_nos);
 		if (ret != EXIT_SUCCESS)
-			return ret;
+			exit_ret = ret;
 		if (*argv)
 			printf("\n==> %s <==\n", *argv);
 	}
 
-	return EXIT_SUCCESS;
+	return exit_ret;
 }
