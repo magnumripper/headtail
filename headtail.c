@@ -17,8 +17,10 @@
 #include <stdarg.h>
 #include <errno.h>
 #include <sys/time.h>
+#include <sys/ioctl.h>
 
 #define MIN(a, b)	((a) < (b) ? (a) : (b))
+#define MAX(a, b)	((a) > (b) ? (a) : (b))
 
 #define mem_free(ptr)	do { \
 		if (ptr) { \
@@ -119,7 +121,7 @@ static int process_file(char *name, int num_lines, int show_line_nos, int show_h
 
 	int num_tail = MIN(num_lines, line - num_lines);
 
-	/* Instead of outputting "1 line skipped", we might just as well output that line */
+	// Instead of outputting "1 line skipped", we might just as well output that line
 	if (line == 2 * num_lines + 1)
 		num_tail += 1;
 
@@ -152,18 +154,16 @@ int usage(char *name)
 {
 	printf("Usage: %s [OPTION] [FILE]...\n", name);
 	puts("\nOptions:");
-	puts("  -n <num>   max. number of head and tail lines (default 10)");
+	puts("  -n <num>   max. number of head and tail lines (default is half terminal height)");
 	puts("  -l         show line numbers");
 	puts("  -q         never output filename headers");
 	puts("  -h         this help");
 	puts("\nHeadTail utility (c) magnum 2021");
 	puts("\nWorks similar to 'head' and 'tail' on each file but does both at once, even for");
 	puts("stdin (which is impossible with head/tail).");
-	puts("If file is at most 21 lines (using defaults), just output the whole file.  If");
+	puts("If file fits terminal height (using defaults), just output the whole file.  If");
 	puts("it is longer, output the head followed by \"(... n lines skipped ...)\" on a");
 	puts("separate line, then the tail.");
-	puts("\nWe'll never skip a single line because outputting \"1 line skipped\" would take");
-	puts("the same screen estate, that's the reason for \"at most 21 lines\" above.");
 	puts("\nIf no file name is given, standard input is used.");
 	puts("\nUnlike 'head' and 'tail', this tools adds a final LF in case the last line");
 	puts("was lacking it.");
@@ -175,8 +175,14 @@ int main(int argc, char **argv)
 {
 	int c, show_line_nos = 0;
 	int exit_ret = EXIT_SUCCESS;
-	int quiet = 0;
-	int num_lines = 10;
+	int quiet = 0, num_lines = 10;
+	struct winsize w;
+
+	if (isatty(fileno(stdout))) {
+		ioctl(0, TIOCGWINSZ, &w);
+		num_lines = MAX(10, (w.ws_row - 1) / 2 - 1);
+		// columns in w.ws_col);
+	}
 
 	while ((c = getopt(argc, argv, "n:qlh")) != -1) {
 		switch (c) {
@@ -194,6 +200,7 @@ int main(int argc, char **argv)
 			show_line_nos = 1;
 			break;
 		case 'h':
+		case '?':
 			exit(usage(argv[0]));
 			break;
 		}
