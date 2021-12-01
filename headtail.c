@@ -16,6 +16,7 @@
 #include <unistd.h>
 #include <stdarg.h>
 #include <errno.h>
+#include <sys/time.h>
 
 #define MIN(a, b)	((a) < (b) ? (a) : (b))
 
@@ -26,7 +27,7 @@
 		} \
 	} while(0);
 
-static void *mem_calloc(size_t nmemb, size_t size)
+static void* mem_calloc(size_t nmemb, size_t size)
 {
 	void *res;
 
@@ -58,6 +59,7 @@ static int process_file(char *name, int num_lines, int show_line_nos, int show_h
 	char **buf = mem_calloc(sizeof(char*), num_lines + 1);
 	size_t *size = mem_calloc(sizeof(size_t), num_lines + 1);
 	int i, line = 0, mod = 0;
+	int tty_out = isatty(fileno(stdout));
 
 	if (!strcmp(name, "-")) {
 		fh = stdin;
@@ -74,9 +76,7 @@ static int process_file(char *name, int num_lines, int show_line_nos, int show_h
 		printf("==> %s <==\n", name);
 
 	while (!feof(fh)) {
-		ssize_t len;
-
-		len = getline(&buf[mod], &size[mod], fh);
+		ssize_t len = getline(&buf[mod], &size[mod], fh);
 
 		if (len < 0) {
 			if (ferror(fh)) {
@@ -88,14 +88,27 @@ static int process_file(char *name, int num_lines, int show_line_nos, int show_h
 			}
 			break;
 		}
+
 		if (line++ < num_lines) {
 			if (show_line_nos)
 				printf("%6d: ", line);
 			printf("%s%s", buf[mod], (buf[mod][len - 1] == '\n') ? "" : "\n");
 			fflush(stdout);
 		}
+		else if (tty_out && line >= 2 * num_lines + 2) {
+			struct timeval tp;
+			static int last;
 
-		if (line == 2 * num_lines + 2) {
+			gettimeofday(&tp, NULL);
+			int current = tp.tv_sec;
+
+			if (current != last) {
+				printf("(... %d lines skipped ...)\r", line - num_lines);
+				fflush(stdout);
+				last = current;
+			}
+		}
+		else if (line == 2 * num_lines + 2) {
 			printf("(...");
 			fflush(stdout);
 		}
@@ -110,8 +123,12 @@ static int process_file(char *name, int num_lines, int show_line_nos, int show_h
 	if (line == 2 * num_lines + 1)
 		num_tail += 1;
 
-	if (line > 2 * num_lines + 1)
-		printf(" %d lines skipped ...)\n", line - num_lines - num_tail);
+	if (line > 2 * num_lines + 1) {
+		if (tty_out) {
+			printf("(... %d lines skipped ...)\n", line - num_lines - num_tail);
+		} else
+			printf(" %d lines skipped ...)\n", line - num_lines - num_tail);
+	}
 
 	if (line > num_lines) {
 		for (i = 0; i < num_tail; i++) {
