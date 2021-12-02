@@ -33,6 +33,11 @@
 		} \
 	} while(0);
 
+#define HEADTAIL	0
+#define COMPCAT		1
+
+static int functionality = HEADTAIL;
+
 static void* mem_calloc(size_t nmemb, size_t size)
 {
 	void *res;
@@ -115,7 +120,7 @@ static size_t string_width(char *string)
 }
 
 /*
- * Print line as "lorum ipsum (...) adipiscing elit", with knowledge of character width
+ * Print line as "Lorem ipsum dolor sit (...) elit.", with knowledge of character width
  * even where they're contain tabs (one to many) or multi-byte characters (many to one)
  */
 void print_trunc(char *line, int num_cols, int show_line_nos)
@@ -196,7 +201,7 @@ static int head_tail(char *name, int num_lines, int num_cols, int show_line_nos,
 			break;
 		}
 
-		if (line++ < num_lines) {
+		if (!num_lines || line++ < num_lines) {
 			if (num_cols && string_width(buf[mod]) > num_cols)
 				print_trunc(buf[mod], num_cols, show_line_nos);
 			else {
@@ -236,7 +241,7 @@ static int head_tail(char *name, int num_lines, int num_cols, int show_line_nos,
 	if (line == 2 * num_lines + 1)
 		num_tail += 1;
 
-	if (line > 2 * num_lines + 1) {
+	if (!num_lines && line > 2 * num_lines + 1) {
 		if (tty_out) {
 			printf("(... %d lines skipped ...)\n", line - num_lines - num_tail);
 		} else
@@ -272,22 +277,32 @@ int usage(char *name)
 {
 	printf("Usage: %s [OPTION] [FILE]...\n", name);
 	puts("\nOptions:");
-	puts("  -n <lines> max. number of head and tail lines (default is half terminal height)");
-	puts("  -w         compress horizontally as well: Snip long lines with \"(...)\"");
-	puts("  -c <cols>  specify width for -w (default is terminal width)");
+	if (functionality == HEADTAIL) {
+		puts("  -n <lines> max. number of head and tail lines (default is half terminal height)");
+		puts("  -w         compress horizontally as well: Snip long lines with \"(...)\"");
+		puts("  -c <cols>  specify width for -w (default is terminal width)");
+	} else
+		puts("  -c <cols>  specify width (default is terminal width)");
 	puts("  -l         show line numbers");
 	puts("  -q         never output filename headers");
 	puts("  -h         this help");
-	puts("\nHeadTail utility (c) magnum 2021");
-	puts("\nWorks similar to 'head' and 'tail' on each file but does both at once, even for");
-	puts("stdin (which is impossible with head/tail).");
-	puts("If file fits terminal height (using defaults), just output the whole file.  If");
-	puts("it is longer, output the head followed by \"(... n lines skipped ...)\" on a");
-	puts("separate line, then the tail.");
-	puts("Lines can optionally be horizontally compressed similarly, with -w and/or -c");
-	puts("\nIf no file name is given, standard input is used.");
-	puts("\nUnlike 'head' and 'tail', this tools adds a final LF in case the last line");
-	puts("was lacking it.");
+	if (functionality == HEADTAIL) {
+		puts("\nHeadTail utility (c) magnum 2021");
+		puts("\nWorks similar to 'head' and 'tail' on each file but does both at once, even for");
+		puts("stdin (which is impossible with head/tail).");
+		puts("If file fits terminal height (using defaults), just output the whole file.  If");
+		puts("it is longer, output the head followed by \"(... n lines skipped ...)\" on a");
+		puts("separate line, then the tail.");
+		puts("Lines can optionally be horizontally compressed similarly, with -w and/or -c");
+		puts("\nIf no file name is given, standard input is used.");
+		puts("\nUnlike 'head' and 'tail', this tools adds a final LF in case the last line");
+		puts("was lacking it.");
+	} else {
+		puts("\nCompCat utility (c) magnum 2021");
+		puts("Horizontally compress output, as in \"Lorem ipsum dolor sit (...) elit.\"");
+		puts("\nIf no file name is given, standard input is used.");
+		puts("\nUnlike 'cat', this tools adds a final LF in case the last line was lacking it.");
+	}
 
 	return EXIT_SUCCESS;
 }
@@ -305,10 +320,27 @@ int main(int argc, char **argv)
 		term_cols = MAX(20, w.ws_col);
 	}
 
-	while ((c = getopt(argc, argv, "n:wc:qlh")) != -1) {
+	char *optstring = "n:wc:qlh";
+
+	// Morph!
+	if (!strncmp(argv[0], "compcat", 7)) {
+	    functionality = COMPCAT;
+		optstring = "c:qlh";
+		num_lines = 0;
+		snip_width = 1;
+	}
+
+	while ((c = getopt(argc, argv, optstring)) != -1) {
 		switch (c) {
 		case 'n':
-			if (!sscanf(optarg, "%i", &num_lines) || num_lines <= 0) {
+			if (!sscanf(optarg, "%i", &num_lines)) {
+				usage(argv[0]);
+				exit(EXIT_FAILURE);
+			}
+			// We allow "-n 0" for disabling the headtail functionality and just go for -w
+			if (num_lines == 0)
+				snip_width = 1;
+			else if (num_lines && num_lines < 10) {
 				usage(argv[0]);
 				exit(EXIT_FAILURE);
 			}
