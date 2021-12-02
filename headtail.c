@@ -311,6 +311,7 @@ int main(int argc, char **argv)
 	int exit_ret = EXIT_SUCCESS;
 	int quiet = 0, num_lines = 10, num_cols = 0, term_cols = 80, snip_width = 0;
 	struct winsize w;
+	char *env;
 
 	if (ioctl(fileno(stdout), TIOCGWINSZ, &w) >= 0 || ioctl(fileno(stderr), TIOCGWINSZ, &w) >= 0 ||
 	    ioctl(fileno(stdin), TIOCGWINSZ, &w) >= 0) {
@@ -326,6 +327,22 @@ int main(int argc, char **argv)
 		optstring = "c:qlh";
 		num_lines = 0;
 		snip_width = 1;
+		env = getenv("COMPCAT");
+	} else
+		env = getenv("HEADTAIL");
+
+	if (env) {
+		char **new_argv = calloc(argc + 2, sizeof(char*));
+		int i;
+
+		new_argv[0] = argv[0];
+		new_argv[1] = env;
+
+		for (i = 1; i < argc; i++)
+			new_argv[i + 1] = argv[i];
+
+		argv = new_argv;
+		argc++;
 	}
 
 	while ((c = getopt(argc, argv, optstring)) != -1) {
