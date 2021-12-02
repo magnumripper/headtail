@@ -276,7 +276,7 @@ static int head_tail(char *name, int num_lines, int num_cols, int show_line_nos,
 
 int usage(char *name)
 {
-	printf("Usage: %s [OPTION] [FILE]...\n", name);
+	printf("(c) magnum 2021\nUsage: %s [OPTION]... [FILE]...\n", name);
 	puts("\nOptions:");
 	if (functionality == HEADTAIL) {
 		puts("  -n <lines> max. number of head and tail lines (default is half terminal height)");
@@ -288,21 +288,18 @@ int usage(char *name)
 	puts("  -q         never output filename headers");
 	puts("  -h         this help");
 	if (functionality == HEADTAIL) {
-		puts("\nHeadTail utility (c) magnum 2021");
 		puts("\nWorks similar to 'head' and 'tail' on each file but does both at once, even for");
 		puts("stdin (which is impossible with head/tail).");
 		puts("If file fits terminal height (using defaults), just output the whole file.  If");
 		puts("it is longer, output the head followed by \"(... n lines skipped ...)\" on a");
-		puts("separate line, then the tail.");
-		puts("Lines can optionally be horizontally compressed similarly, with -w and/or -c");
-		puts("\nIf no file name is given, standard input is used.");
-		puts("\nUnlike 'head' and 'tail', this tools adds a final LF in case the last line");
-		puts("was lacking it.");
+		puts("separate line, then the tail.  Lines can optionally be horizontally compressed");
+		puts("similarly, using -w and/or -c.  If no file is given, standard input is used.");
+		puts("Unlike 'head'  and 'tail', this tool adds a final LF in case the last line was");
+		puts("lacking it.");
 	} else {
-		puts("\nCompCat utility (c) magnum 2021");
-		puts("Horizontally compress output, as in \"Lorem ipsum dolor sit (...) elit.\"");
-		puts("\nIf no file name is given, standard input is used.");
-		puts("\nUnlike 'cat', this tools adds a final LF in case the last line was lacking it.");
+		puts("\nHorizontally compress output, as in \"Lorem ipsum dolor sit (...) elit.\".  If no");
+		puts("file is given, standard input is used.  Unlike 'cat', this tool adds a final LF");
+		puts("in case the last line was lacking it.");
 	}
 
 	return EXIT_SUCCESS;
