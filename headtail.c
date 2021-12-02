@@ -338,6 +338,9 @@ int main(int argc, char **argv)
 	argc -= optind;
 	argv += optind;
 
+	if (show_line_nos)
+		term_cols -= 10;
+
 	if (snip_width)
 		num_cols = term_cols;
 
