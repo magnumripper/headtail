@@ -89,19 +89,20 @@ typedef struct {
  * ascii -> { 1, 1 }
  * ö     -> { 2, 1 }
  * €     -> { 3, 1 }
+ *
+ * The backspace character technically has an output width of -1 but that would be dangerous.  I'll
+ * probably handle that and some others with substitutions later.
+ *
+ * Some Unicode characters have an output width != 1 but I'm ignoring that until the day it hits me.
  */
 static char_width width(char c)
 {
-	switch (c) {
-	case '\r':
-	case '\n':
-	case '\xff':
-		return (char_width){ 1, 0 };
-	case '\t':
+	if (c == '\t')
 		return (char_width){ 1, 8 };
-	default:
+	else if (c < ' ' || c == 0x7f)
+		return (char_width){ 1, 0 };
+	else
 		return (char_width){ UTF8len[(unsigned char)c], 1};
-	}
 }
 
 static size_t string_width(char *string)
