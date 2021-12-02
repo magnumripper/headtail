@@ -242,7 +242,7 @@ static int head_tail(char *name, int num_lines, int num_cols, int show_line_nos,
 	if (line == 2 * num_lines + 1)
 		num_tail += 1;
 
-	if (!num_lines && line > 2 * num_lines + 1) {
+	if (num_lines && line > 2 * num_lines + 1) {
 		if (tty_out) {
 			printf("(... %d lines skipped ...)\n", line - num_lines - num_tail);
 		} else
