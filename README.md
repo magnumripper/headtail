@@ -47,8 +47,9 @@ Unlike 'cat', this tools adds a final LF in case the last line was lacking it.
 None!
 
 ## Building & installing
-Just compile it! The single binary morph when called as "compcat".
-For example like this:
+Just compile it! A single binary morph when called as "compcat".
+
+Build and install like this:
 ```
 gcc -O2 -Wall headtail.c -o headtail
 mv headtail /usr/local/bin

@@ -314,8 +314,7 @@ int main(int argc, char **argv)
 	int quiet = 0, num_lines = 10, num_cols = 0, term_cols = 80, snip_width = 0;
 	struct winsize w;
 
-	if (isatty(fileno(stdout))) {
-		ioctl(0, TIOCGWINSZ, &w);
+	if (ioctl(0, TIOCGWINSZ, &w) >= 0) {
 		num_lines = MAX(10, (w.ws_row - 1) / 2 - 1);
 		term_cols = MAX(20, w.ws_col);
 	}
