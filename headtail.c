@@ -202,7 +202,7 @@ static int head_tail(char *name, int num_lines, int num_cols, int show_line_nos,
 			break;
 		}
 
-		if (!num_lines || line++ < num_lines) {
+		if (line++ < num_lines || !num_lines) {
 			if (num_cols && string_width(buf[mod]) > num_cols)
 				print_trunc(buf[mod], num_cols, show_line_nos);
 			else {
