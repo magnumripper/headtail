@@ -37,6 +37,11 @@
 #define COMPCAT		1
 
 static int functionality = HEADTAIL;
+static int num_lines = 10;
+static int num_cols = 0;
+static int show_line_nos = 0;
+static int show_header;
+static int tab_width = TAB_WIDTH;
 
 static void* mem_calloc(size_t nmemb, size_t size)
 {
@@ -98,7 +103,7 @@ typedef struct {
 static char_width width(char c)
 {
 	if (c == '\t')
-		return (char_width){ 1, 8 };
+		return (char_width){ 1, tab_width };
 	else if (c < ' ' || c == 0x7f)
 		return (char_width){ 1, 0 };
 	else
@@ -109,10 +114,21 @@ static size_t string_width(char *string)
 {
 	char *c = string;
 	size_t ret = 0;
+	int col = 0;
 
 	while (*c) {
-		ret += width(*c).out_width;
-		int w = width(*c).in_width;
+		int w = width(*c).out_width;
+		int tab = tab_width;
+
+		if (w == tab_width) {
+			tab -= col % tab_width;
+			ret += tab;
+			col += tab;
+		} else {
+			ret += w;
+			col += w;
+		}
+		w = width(*c).in_width;
 		while (w--)
 			if (!*++c)
 				break; // Thrashed multibyte character
@@ -124,7 +140,7 @@ static size_t string_width(char *string)
  * Print line as "Lorem ipsum dolor sit (...) elit.", with knowledge of character width
  * even where they're contain tabs (one to many) or multi-byte characters (many to one)
  */
-void print_trunc(char *line, int num_cols, int show_line_nos)
+void print_trunc(char *line)
 {
 	int header_len = (num_cols - SNIP_LEN) * 3 / 4;
 	int trailer_len = (num_cols - SNIP_LEN) / 4;
@@ -139,6 +155,9 @@ void print_trunc(char *line, int num_cols, int show_line_nos)
 
 	while (*c && col <= header_len) {
 		char_width cw = width(*c);
+
+		if (cw.out_width == tab_width)
+			cw.out_width -= col % tab_width;
 
 		if (col + cw.out_width <= header_len) { // We print it
 			while (cw.in_width--)
@@ -166,7 +185,7 @@ void print_trunc(char *line, int num_cols, int show_line_nos)
 	fputs(c, stdout);
 }
 
-static int head_tail(char *name, int num_lines, int num_cols, int show_line_nos, int show_header)
+static int head_tail(char *name)
 {
 	FILE *fh;
 	char **buf = mem_calloc(sizeof(char*), num_lines + 1);
@@ -206,7 +225,7 @@ static int head_tail(char *name, int num_lines, int num_cols, int show_line_nos,
 			if (show_line_nos)
 				printf("%6d: ", line);
 			if (num_cols && string_width(buf[mod]) > num_cols)
-				print_trunc(buf[mod], num_cols, show_line_nos);
+				print_trunc(buf[mod]);
 			else {
 				printf("%s", buf[mod]);
 			}
@@ -257,7 +276,7 @@ static int head_tail(char *name, int num_lines, int num_cols, int show_line_nos,
 			if (show_line_nos)
 				printf("%6d: ", line);
 			if (num_cols && string_width(buf[nmod]) > num_cols)
-				print_trunc(buf[nmod], num_cols, show_line_nos);
+				print_trunc(buf[nmod]);
 			else {
 				printf("%s", buf[nmod]);
 			}
@@ -285,6 +304,7 @@ int usage(char *name)
 	} else
 		puts("  -c <cols>  specify width (default is terminal width)");
 	puts("  -l         show line numbers");
+	printf("  -t <width> set tab width (default %d)\n", TAB_WIDTH);
 	puts("  -q         never output filename headers");
 	puts("  -h         this help");
 	if (functionality == HEADTAIL) {
@@ -307,9 +327,9 @@ int usage(char *name)
 
 int main(int argc, char **argv)
 {
-	int c, show_line_nos = 0;
+	int c;
 	int exit_ret = EXIT_SUCCESS;
-	int quiet = 0, num_lines = 10, num_cols = 0, term_cols = 80, snip_width = 0;
+	int quiet = 0, term_cols = 80, snip_width = 0;
 	struct winsize w;
 	char *env;
 
@@ -319,12 +339,12 @@ int main(int argc, char **argv)
 		term_cols = MAX(20, w.ws_col);
 	}
 
-	char *optstring = "n:wc:qlh";
+	char *optstring = "n:wc:t:qlh";
 
 	// Morph!
 	if (!strncmp(argv[0], "compcat", 7)) {
 	    functionality = COMPCAT;
-		optstring = "c:qlh";
+		optstring = "c:t:qlh";
 		num_lines = 0;
 		snip_width = 1;
 		env = getenv("COMPCAT");
@@ -370,6 +390,12 @@ int main(int argc, char **argv)
 			}
 			snip_width = 1;
 			break;
+		case 't':
+			if (!sscanf(optarg, "%i", &tab_width) || tab_width < 2) {
+				usage(argv[0]);
+				exit(EXIT_FAILURE);
+			}
+			break;
 		case 'q':
 			quiet = 1;
 			break;
@@ -391,15 +417,15 @@ int main(int argc, char **argv)
 	if (snip_width)
 		num_cols = term_cols;
 
-	int show_header = (!quiet && argc > 1);
+	show_header = (!quiet && argc > 1);
 
 	if (!argc)
-		return head_tail("-", num_lines, num_cols, show_line_nos, show_header);
+		return head_tail("-");
 
 	while (*argv) {
 		int ret;
 
-		ret = head_tail(*argv++, num_lines, num_cols, show_line_nos, show_header);
+		ret = head_tail(*argv++);
 		if (ret != EXIT_SUCCESS)
 			exit_ret = ret;
 	}

@@ -9,6 +9,7 @@ Options:
   -w         compress horizontally as well: Snip long lines with "(...)"
   -c <cols>  specify width for -w (default is terminal width)
   -l         show line numbers
+  -t <width> set tab width (default 8)
   -q         never output filename headers
   -h         this help
 
@@ -29,6 +30,7 @@ Usage: compcat [OPTION]... [FILE]...
 Options:
   -c <cols>  specify width (default is terminal width)
   -l         show line numbers
+  -t <width> set tab width (default 8)
   -q         never output filename headers
   -h         this help
 
