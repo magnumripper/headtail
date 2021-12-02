@@ -203,11 +203,11 @@ static int head_tail(char *name, int num_lines, int num_cols, int show_line_nos,
 		}
 
 		if (line++ < num_lines || !num_lines) {
+			if (show_line_nos)
+				printf("%6d: ", line);
 			if (num_cols && string_width(buf[mod]) > num_cols)
 				print_trunc(buf[mod], num_cols, show_line_nos);
 			else {
-				if (show_line_nos)
-					printf("%6d: ", line);
 				printf("%s", buf[mod]);
 			}
 			if (buf[mod][len - 1] != '\n')
@@ -254,11 +254,11 @@ static int head_tail(char *name, int num_lines, int num_cols, int show_line_nos,
 			int n = line - num_tail + i;
 			int nmod = n % (num_lines + 1);
 
+			if (show_line_nos)
+				printf("%6d: ", line);
 			if (num_cols && string_width(buf[nmod]) > num_cols)
 				print_trunc(buf[nmod], num_cols, show_line_nos);
 			else {
-				if (show_line_nos)
-					printf("%6d: ", line);
 				printf("%s", buf[nmod]);
 			}
 			if (buf[nmod][strlen(buf[nmod]) - 1] != '\n')
