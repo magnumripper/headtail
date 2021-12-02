@@ -117,21 +117,25 @@ static size_t string_width(char *string)
 	int col = 0;
 
 	while (*c) {
-		int w = width(*c).out_width;
-		int tab = tab_width;
+		char_width cw = width(*c);
 
-		if (w == tab_width) {
-			tab -= col % tab_width;
-			ret += tab;
-			col += tab;
-		} else {
-			ret += w;
-			col += w;
+		if (*c == '\t')
+			cw.out_width -= col % tab_width;
+		else if (c[0] == '\x1b' && c[1] == '[') { // ANSI SGI (color) code
+			char *m = c + 2;
+
+			while (*m && *m != 'm')
+				m++;
+			if (*m == 'm')
+				cw.in_width += (m - c);
 		}
-		w = width(*c).in_width;
-		while (w--)
+
+		ret += cw.out_width;
+		col += cw.out_width;
+
+		while (cw.in_width--)
 			if (!*++c)
-				break; // Thrashed multibyte character
+				break;
 	}
 	return ret;
 }
@@ -156,8 +160,16 @@ void print_trunc(char *line)
 	while (*c && col <= header_len) {
 		char_width cw = width(*c);
 
-		if (cw.out_width == tab_width)
-			cw.out_width -= col % tab_width;
+		if (*c == '\t')
+			cw.out_width -= (col % tab_width);
+		else if (c[0] == 0x1b && c[1] == '[') { // ANSI SGI (color) code
+			char *m = c + 2;
+
+			while (*m && *m != 'm')
+				m++;
+			if (*m == 'm')
+				cw.in_width += (m - c);
+		}
 
 		if (col + cw.out_width <= header_len) { // We print it
 			while (cw.in_width--)
@@ -172,16 +184,24 @@ void print_trunc(char *line)
 		col += SNIP_LEN;
 	}
 
-	// Eat everything but the trailer. First a quick skip...
-	size_t len = strlen(c);
-	while (len-- > trailer_len)
-		c++;
-
-	// ...then a more elaborate one that understands TABs and multibyte characters
+	// Eat everything but the trailer.
 	while (string_width(c) > trailer_len) {
 		char_width cw = width(*c);
+
+		if (*c == '\t')
+			cw.out_width -= (col % tab_width);
+		else if (c[0] == 0x1b && c[1] == '[') { // ANSI SGI (color) code
+			char *m = c + 2;
+
+			while (*m && *m != 'm')
+				m++;
+			if (*m == 'm')
+				cw.in_width += (m - c);
+		}
+
 		c += cw.in_width;
 	}
+
 	fputs(c, stdout);
 }
 
