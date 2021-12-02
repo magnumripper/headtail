@@ -299,7 +299,7 @@ static int head_tail(char *name)
 			int nmod = n % (num_lines + 1);
 
 			if (show_line_nos)
-				printf("%6d: ", line);
+				printf("%6d: ", n + 1);
 			if (num_cols && string_width(buf[nmod]) > num_cols)
 				print_trunc(buf[nmod]);
 			else {
