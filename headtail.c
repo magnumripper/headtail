@@ -184,6 +184,11 @@ void print_trunc(char *line)
 		col += SNIP_LEN;
 	}
 
+	// Eat everything but the trailer. First a quick skip...
+	size_t len = strlen(c);
+	if (len > trailer_len * tab_width)
+		c += len - trailer_len * tab_width;
+
 	// Eat everything but the trailer.
 	while (string_width(c) > trailer_len) {
 		char_width cw = width(*c);
