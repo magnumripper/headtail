@@ -125,11 +125,11 @@ static size_t string_width(char *string)
 		if (*c == '\t')
 			cw.out_width -= col % tab_width;
 		else if (c[0] == '\x1b' && c[1] == '[') { // ANSI SGI (color) code
-			char *m = c + 2;
+			char *m = &c[2];
 
 			while (*m && *m != 'm')
 				m++;
-			if (*m == 'm')
+			if (*m)
 				cw.in_width += (m - c);
 		}
 
@@ -167,11 +167,11 @@ void print_trunc(char *line)
 		if (*c == '\t')
 			cw.out_width -= (col % tab_width);
 		else if (c[0] == 0x1b && c[1] == '[') { // ANSI SGI (color) code
-			char *m = c + 2;
+			char *m = &c[2];
 
 			while (*m && *m != 'm')
 				m++;
-			if (*m == 'm') {
+			if (*m) {
 				cw.in_width += (m - c);
 				sgi = 1;
 			}
@@ -190,26 +190,25 @@ void print_trunc(char *line)
 		col += SNIP_LEN;
 	}
 
-	// Eat everything but the trailer. First a quick skip...
+	// Eat everything but the trailer. First a quick skip for extremely long lines...
 	size_t len = strlen(c);
 	if (len > trailer_len * tab_width)
 		c += len - trailer_len * tab_width;
 
-	// Eat everything but the trailer.
+	// ...then a more elaborate one
 	while (string_width(c) > trailer_len) {
 		char_width cw = width(*c);
 
 		if (*c == '\t')
 			cw.out_width -= (col % tab_width);
 		else if (c[0] == 0x1b && c[1] == '[') { // ANSI SGI (color) code
-			char *m = c + 2;
+			char *m = &c[2];
 
 			while (*m && *m != 'm')
 				m++;
-			if (*m == 'm')
+			if (*m)
 				cw.in_width += (m - c);
 		}
-
 		c += cw.in_width;
 	}
 
@@ -221,17 +220,17 @@ void print_trunc(char *line)
 		if (*c == '\t')
 			cw.out_width -= (col % tab_width);
 		else if (c[0] == 0x1b && c[1] == '[') { // ANSI SGI (color) code
-			char *m = c + 2;
+			char *m = &c[2];
 
 			while (*m && *m != 'm')
 				m++;
-			if (*m == 'm') {
+			if (*m) {
 				cw.in_width += (m - c);
 				sgi = 1;
 			}
 		}
 
-		if ((cw.out_width || sgi) && col + cw.out_width <= header_len) { // We print it
+		if (cw.out_width || sgi) { // We print it
 			while (cw.in_width--)
 				putchar(*c++);
 		} else // We eat it
