@@ -70,10 +70,13 @@ static void print_error(const char *format, ...)
 }
 
 const char UTF8len[256] = {
+	// CTRL codes
+	1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1, 1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,
+	// ASCII
 	1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1, 1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,
 	1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1, 1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,
 	1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1, 1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,
-	1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1, 1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,
+	// UTF-8 (not all are legal)
 	1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1, 1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,
 	1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1, 1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,
 	2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2, 2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,
@@ -171,7 +174,7 @@ void print_trunc(char *line)
 				cw.in_width += (m - c);
 		}
 
-		if (col + cw.out_width <= header_len) { // We print it
+		if (cw.out_width && col + cw.out_width <= header_len) { // We print it
 			while (cw.in_width--)
 				putchar(*c++);
 		} else // We eat it
@@ -207,7 +210,33 @@ void print_trunc(char *line)
 		c += cw.in_width;
 	}
 
-	fputs(c, stdout);
+	// Print the trailer
+	while (*c) {
+		char_width cw = width(*c);
+
+		if (*c == '\t')
+			cw.out_width -= (col % tab_width);
+		else if (c[0] == 0x1b && c[1] == '[') { // ANSI SGI (color) code
+			char *m = c + 2;
+
+			while (*m && *m != 'm')
+				m++;
+			if (*m == 'm')
+				cw.in_width += (m - c);
+		}
+
+		if (cw.out_width && col + cw.out_width <= header_len) { // We print it
+			while (cw.in_width--)
+				putchar(*c++);
+		} else // We eat it
+			c += cw.in_width;
+
+		col += cw.out_width;
+	}
+
+	// Reset colors - we might have snipped a reset.
+	// Also add a LF since we snipped any in there.
+	fputs("\x1b[m\n", stdout);
 }
 
 static int head_tail(char *name)
@@ -249,13 +278,7 @@ static int head_tail(char *name)
 		if (line++ < num_lines || !num_lines) {
 			if (show_line_nos)
 				printf("%6d: ", line);
-			if (num_cols && string_width(buf[mod]) > num_cols)
-				print_trunc(buf[mod]);
-			else {
-				printf("%s", buf[mod]);
-			}
-			if (buf[mod][len - 1] != '\n')
-				putchar('\n');
+			print_trunc(buf[mod]);
 			fflush(stdout);
 		}
 		else if (tty_out && line >= 2 * num_lines + 2) {
@@ -283,7 +306,7 @@ static int head_tail(char *name)
 	int num_tail = MIN(num_lines, line - num_lines);
 
 	// Instead of outputting "1 line skipped", we might just as well output that line
-	if (line == 2 * num_lines + 1)
+	if (num_lines && line == 2 * num_lines + 1)
 		num_tail += 1;
 
 	if (num_lines && line > 2 * num_lines + 1) {
@@ -293,20 +316,14 @@ static int head_tail(char *name)
 			printf(" %d lines skipped ...)\n", line - num_lines - num_tail);
 	}
 
-	if (line > num_lines) {
+	if (num_lines && line > num_lines) {
 		for (i = 0; i < num_tail; i++) {
 			int n = line - num_tail + i;
 			int nmod = n % (num_lines + 1);
 
 			if (show_line_nos)
 				printf("%6d: ", n + 1);
-			if (num_cols && string_width(buf[nmod]) > num_cols)
-				print_trunc(buf[nmod]);
-			else {
-				printf("%s", buf[nmod]);
-			}
-			if (buf[nmod][strlen(buf[nmod]) - 1] != '\n')
-				putchar('\n');
+			print_trunc(buf[nmod]);
 			fflush(stdout);
 		}
 	}
