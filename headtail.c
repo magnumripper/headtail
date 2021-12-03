@@ -162,6 +162,7 @@ void print_trunc(char *line)
 
 	while (*c && col <= header_len) {
 		char_width cw = width(*c);
+		int sgi = 0;
 
 		if (*c == '\t')
 			cw.out_width -= (col % tab_width);
@@ -170,11 +171,13 @@ void print_trunc(char *line)
 
 			while (*m && *m != 'm')
 				m++;
-			if (*m == 'm')
+			if (*m == 'm') {
 				cw.in_width += (m - c);
+				sgi = 1;
+			}
 		}
 
-		if (cw.out_width && col + cw.out_width <= header_len) { // We print it
+		if ((cw.out_width || sgi) && col + cw.out_width <= header_len) { // We print it
 			while (cw.in_width--)
 				putchar(*c++);
 		} else // We eat it
@@ -213,6 +216,7 @@ void print_trunc(char *line)
 	// Print the trailer
 	while (*c) {
 		char_width cw = width(*c);
+		int sgi = 0;
 
 		if (*c == '\t')
 			cw.out_width -= (col % tab_width);
@@ -221,11 +225,13 @@ void print_trunc(char *line)
 
 			while (*m && *m != 'm')
 				m++;
-			if (*m == 'm')
+			if (*m == 'm') {
 				cw.in_width += (m - c);
+				sgi = 1;
+			}
 		}
 
-		if (cw.out_width && col + cw.out_width <= header_len) { // We print it
+		if ((cw.out_width || sgi) && col + cw.out_width <= header_len) { // We print it
 			while (cw.in_width--)
 				putchar(*c++);
 		} else // We eat it
