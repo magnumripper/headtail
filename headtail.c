@@ -103,14 +103,14 @@ typedef struct {
  *
  * Some Unicode characters have an output width != 1 but I'm ignoring that until the day it hits me.
  */
-static char_width width(char c)
+static char_width width(unsigned char c)
 {
 	if (c == '\t')
 		return (char_width){ 1, tab_width };
 	else if (c < ' ' || c == 0x7f)
 		return (char_width){ 1, 0 };
 	else
-		return (char_width){ UTF8len[(unsigned char)c], 1};
+		return (char_width){ UTF8len[c], 1};
 }
 
 static size_t string_width(char *string)
