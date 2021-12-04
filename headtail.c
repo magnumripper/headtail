@@ -164,9 +164,15 @@ void print_trunc(char *line)
 		char_width cw = width(*c);
 		int sgi = 0;
 
-		if (*c == '\t')
+		if (*c == '\t') {
 			cw.out_width -= (col % tab_width);
-		else if (c[0] == 0x1b && c[1] == '[') { // ANSI SGI (color) code
+
+			if (tab_width != TAB_WIDTH)
+				while (cw.out_width--) {
+					putchar(' ');
+					col++;
+				}
+		} else if (c[0] == 0x1b && c[1] == '[') { // ANSI SGI (color) code
 			char *m = &c[2];
 
 			while (*m && *m != 'm')
@@ -217,9 +223,15 @@ void print_trunc(char *line)
 		char_width cw = width(*c);
 		int sgi = 0;
 
-		if (*c == '\t')
+		if (*c == '\t') {
 			cw.out_width -= (col % tab_width);
-		else if (c[0] == 0x1b && c[1] == '[') { // ANSI SGI (color) code
+
+			if (tab_width != TAB_WIDTH)
+				while (cw.out_width--) {
+					putchar(' ');
+					col++;
+				}
+		} else if (c[0] == 0x1b && c[1] == '[') { // ANSI SGI (color) code
 			char *m = &c[2];
 
 			while (*m && *m != 'm')
@@ -390,7 +402,7 @@ int main(int argc, char **argv)
 
 	// Morph!
 	if (!strncmp(argv[0], "compcat", 7)) {
-	    functionality = COMPCAT;
+		functionality = COMPCAT;
 		optstring = "c:t:qlh";
 		num_lines = 0;
 		snip_width = 1;
