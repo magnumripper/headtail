@@ -171,7 +171,7 @@ void print_trunc(char *line)
 	if (header_len + SNIP_LEN + trailer_len < num_cols)
 		header_len++;
 
-	while (*c && col < header_len) {
+	while (*c && (!num_cols || col < header_len)) {
 		int sgi = 0;
 
 		if (parse_hex && !strncmp(c, "$HEX[", 5)) {
@@ -191,8 +191,10 @@ void print_trunc(char *line)
 			cw.out_width -= (col % tab_width);
 
 			if (tab_width != TAB_WIDTH)
-				while (cw.out_width-- && col++ < header_len)
+				while (cw.out_width-- && (!num_cols || col < header_len)) {
 					putchar(' ');
+					col++;
+				}
 		} else if (c[0] == 0x1b && c[1] == '[') { // ANSI SGI (color) code
 			char *m = &c[2];
 
@@ -204,7 +206,7 @@ void print_trunc(char *line)
 			}
 		}
 
-		if ((cw.out_width || sgi) && col + cw.out_width <= header_len) { // We print it
+		if ((cw.out_width || sgi) && (!num_cols || col + cw.out_width <= header_len)) { // We print it
 			while (cw.in_width--)
 				putchar(*c++);
 		} else // We eat it
@@ -214,7 +216,7 @@ void print_trunc(char *line)
 			col += cw.out_width;
 	}
 
-	if (string_width(line) > num_cols) {
+	if (num_cols && string_width(line) > num_cols) {
 		fputs(SNIP, stdout);
 		col += SNIP_LEN;
 
@@ -306,8 +308,8 @@ void print_trunc(char *line)
 static int head_tail(char *name)
 {
 	FILE *fh;
-	char **buf = mem_calloc(sizeof(char*), num_lines + 1);
-	size_t *size = mem_calloc(sizeof(size_t), num_lines + 1);
+	char **buf = mem_calloc(sizeof(char*), num_lines + 2);
+	size_t *size = mem_calloc(sizeof(size_t), num_lines + 2);
 	int i, line = 0, mod = 0;
 	int tty_out = isatty(fileno(stdout));
 
@@ -363,7 +365,7 @@ static int head_tail(char *name)
 			fflush(stdout);
 		}
 
-		if (++mod >= num_lines + 1)
+		if (++mod >= num_lines + 2)
 			mod = 0;
 	}
 
@@ -383,7 +385,7 @@ static int head_tail(char *name)
 	if (num_lines && line > num_lines) {
 		for (i = 0; i < num_tail; i++) {
 			int n = line - num_tail + i;
-			int nmod = n % (num_lines + 1);
+			int nmod = n % (num_lines + 2);
 
 			if (show_line_nos)
 				printf("%6d: ", n + 1);
