@@ -160,7 +160,7 @@ void print_trunc(char *line)
 	if (header_len + SNIP_LEN + trailer_len < num_cols)
 		header_len++;
 
-	while (*c && col <= header_len) {
+	while (*c && col < header_len) {
 		char_width cw = width(*c);
 		int sgi = 0;
 
@@ -191,31 +191,32 @@ void print_trunc(char *line)
 
 		col += cw.out_width;
 	}
-	if (col > header_len) {
+
+	if (string_width(line) > num_cols) {
 		fputs(SNIP, stdout);
 		col += SNIP_LEN;
-	}
 
-	// Eat everything but the trailer. First a quick skip for extremely long lines...
-	size_t len = strlen(c);
-	if (len > trailer_len * tab_width)
-		c += len - trailer_len * tab_width;
+		// Eat everything but the trailer. First a quick skip for extremely long lines...
+		size_t len = strlen(c);
+		if (len > trailer_len * tab_width)
+			c += len - trailer_len * tab_width;
 
-	// ...then a more elaborate one
-	while (string_width(c) > trailer_len) {
-		char_width cw = width(*c);
+		// ...then a more elaborate one
+		while (string_width(c) > trailer_len) {
+			char_width cw = width(*c);
 
-		if (*c == '\t')
-			cw.out_width -= (col % tab_width);
-		else if (c[0] == 0x1b && c[1] == '[') { // ANSI SGI (color) code
-			char *m = &c[2];
+			if (*c == '\t')
+				cw.out_width -= (col % tab_width);
+			else if (c[0] == 0x1b && c[1] == '[') { // ANSI SGI (color) code
+				char *m = &c[2];
 
-			while (*m && *m != 'm')
-				m++;
-			if (*m)
-				cw.in_width += (m - c);
+				while (*m && *m != 'm')
+					m++;
+				if (*m)
+					cw.in_width += (m - c);
+			}
+			c += cw.in_width;
 		}
-		c += cw.in_width;
 	}
 
 	// Print the trailer
