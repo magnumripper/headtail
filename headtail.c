@@ -31,17 +31,17 @@
 			free(ptr); \
 			(ptr) = NULL; \
 		} \
-	} while(0);
+	} while (0);
 
+#define HEX			"0123456789abcdef"
+#define FROM_HEX(c)	(((c) >= '0' && (c) <= '9') ? (c) - '0' : ((c) >= 'a' && (c) <= 'f') ? 10 + (c) - 'a' : -1)
 #define HEADTAIL	0
 #define COMPCAT		1
 
 static int functionality = HEADTAIL;
-static int num_lines = 10;
-static int num_cols = 0;
-static int show_line_nos = 0;
-static int show_header;
 static int tab_width = TAB_WIDTH;
+static int num_lines = 10;
+static int num_cols, show_line_nos, parse_hex, show_header;
 
 static void* mem_calloc(size_t nmemb, size_t size)
 {
@@ -161,17 +161,27 @@ void print_trunc(char *line)
 		header_len++;
 
 	while (*c && col < header_len) {
-		char_width cw = width(*c);
 		int sgi = 0;
+
+		if (parse_hex && !strncmp(c, "$HEX[", 5)) {
+			char *h = &c[5];
+			int len = strspn(h, HEX);
+
+			if (!(len % 2) && h[len] == ']' && (len /= 2)) {
+				c += 6 + len;
+				while (len--)
+					c[len] = ((FROM_HEX(h[2 * len]) << 4) | FROM_HEX(h[2 * len + 1]));
+			}
+		}
+
+		char_width cw = width(*c);
 
 		if (*c == '\t') {
 			cw.out_width -= (col % tab_width);
 
 			if (tab_width != TAB_WIDTH)
-				while (cw.out_width--) {
+				while (cw.out_width-- && col++ < header_len)
 					putchar(' ');
-					col++;
-				}
 		} else if (c[0] == 0x1b && c[1] == '[') { // ANSI SGI (color) code
 			char *m = &c[2];
 
@@ -189,7 +199,8 @@ void print_trunc(char *line)
 		} else // We eat it
 			c += cw.in_width;
 
-		col += cw.out_width;
+		if (cw.out_width > 0)
+			col += cw.out_width;
 	}
 
 	if (string_width(line) > num_cols) {
@@ -203,6 +214,17 @@ void print_trunc(char *line)
 
 		// ...then a more elaborate one
 		while (string_width(c) > trailer_len) {
+			if (parse_hex && !strncmp(c, "$HEX[", 5)) {
+				char *h = &c[5];
+				int len = strspn(h, HEX);
+
+				if (!(len % 2) && h[len] == ']' && (len /= 2)) {
+					c += 6 + len;
+					while (len--)
+						c[len] = ((FROM_HEX(h[2 * len]) << 4) | FROM_HEX(h[2 * len + 1]));
+				}
+			}
+
 			char_width cw = width(*c);
 
 			if (*c == '\t')
@@ -221,8 +243,20 @@ void print_trunc(char *line)
 
 	// Print the trailer
 	while (*c) {
-		char_width cw = width(*c);
 		int sgi = 0;
+
+		if (parse_hex && !strncmp(c, "$HEX[", 5)) {
+			char *h = &c[5];
+			int len = strspn(h, HEX);
+
+			if (!(len % 2) && h[len] == ']' && (len /= 2)) {
+				c += 6 + len;
+				while (len--)
+					c[len] = ((FROM_HEX(h[2 * len]) << 4) | FROM_HEX(h[2 * len + 1]));
+			}
+		}
+
+		char_width cw = width(*c);
 
 		if (*c == '\t') {
 			cw.out_width -= (col % tab_width);
@@ -249,7 +283,8 @@ void print_trunc(char *line)
 		} else // We eat it
 			c += cw.in_width;
 
-		col += cw.out_width;
+		if (cw.out_width > 0)
+			col += cw.out_width;
 	}
 
 	// Reset colors - we might have snipped a reset.
@@ -365,6 +400,7 @@ int usage(char *name)
 		puts("  -c <cols>  specify width (default is terminal width)");
 	puts("  -l         show line numbers");
 	printf("  -t <width> set tab width (default %d)\n", TAB_WIDTH);
+	puts("  -H         parse $HEX[6141] --> aA");
 	puts("  -q         never output filename headers");
 	puts("  -h         this help");
 	if (functionality == HEADTAIL) {
@@ -399,12 +435,12 @@ int main(int argc, char **argv)
 		term_cols = MAX(20, w.ws_col);
 	}
 
-	char *optstring = "n:wc:t:qlh";
+	char *optstring = "n:wc:t:Hqlh?";
 
 	// Morph!
 	if (!strncmp(argv[0], "compcat", 7)) {
 		functionality = COMPCAT;
-		optstring = "c:t:qlh";
+		optstring = "c:t:Hqlh?";
 		num_lines = 0;
 		snip_width = 1;
 		env = getenv("COMPCAT");
@@ -455,6 +491,9 @@ int main(int argc, char **argv)
 				usage(argv[0]);
 				exit(EXIT_FAILURE);
 			}
+			break;
+		case 'H':
+			parse_hex = 1;
 			break;
 		case 'q':
 			quiet = 1;
