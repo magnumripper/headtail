@@ -307,7 +307,7 @@ static int head_tail(char *name)
 			int current = tp.tv_sec;
 
 			if (current != last) {
-				printf("(... %d lines skipped ...)\r", line - num_lines);
+				printf("(... %d lines skipped ...)\r", line - 2 * num_lines);
 				fflush(stdout);
 				last = current;
 			}
