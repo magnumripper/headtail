@@ -120,6 +120,17 @@ static size_t string_width(char *string)
 	int col = 0;
 
 	while (*c) {
+		if (parse_hex && !strncmp(c, "$HEX[", 5)) {
+			char *h = &c[5];
+			int len = strspn(h, HEX);
+
+			if (!(len % 2) && h[len] == ']' && (len /= 2)) {
+				c += 6 + len;
+				while (len--)
+					c[len] = ((FROM_HEX(h[2 * len]) << 4) | FROM_HEX(h[2 * len + 1]));
+			}
+		}
+
 		char_width cw = width(*c);
 
 		if (*c == '\t')
