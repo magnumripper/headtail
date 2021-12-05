@@ -191,7 +191,8 @@ void print_trunc(char *line)
 			cw.out_width -= (col % tab_width);
 
 			if (tab_width != TAB_WIDTH)
-				while (cw.out_width-- && (!num_cols || col < header_len)) {
+				while (cw.out_width && (!num_cols || col < header_len)) {
+					cw.out_width--;
 					putchar(' ');
 					col++;
 				}
@@ -275,7 +276,8 @@ void print_trunc(char *line)
 			cw.out_width -= (col % tab_width);
 
 			if (tab_width != TAB_WIDTH)
-				while (cw.out_width--) {
+				while (cw.out_width) {
+					cw.out_width--;
 					putchar(' ');
 					col++;
 				}
