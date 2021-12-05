@@ -406,9 +406,9 @@ int usage(char *name)
 	if (functionality == HEADTAIL) {
 		puts("  -n <lines> max. number of head and tail lines (default is half terminal height)");
 		puts("  -w         compress horizontally as well: Snip long lines with \"(...)\"");
-		puts("  -c <cols>  specify width for -w (default is terminal width)");
+		puts("  -c <cols>  specify width for -w (minimum 20, default is terminal width)");
 	} else
-		puts("  -c <cols>  specify width (default is terminal width)");
+		puts("  -c <cols>  specify width (minimum 20, default is terminal width)");
 	puts("  -l         show line numbers");
 	printf("  -t <width> set tab width (default %d)\n", TAB_WIDTH);
 	puts("  -H         parse $HEX[6141] --> aA");
@@ -442,7 +442,7 @@ int main(int argc, char **argv)
 
 	if (ioctl(fileno(stdout), TIOCGWINSZ, &w) >= 0 || ioctl(fileno(stderr), TIOCGWINSZ, &w) >= 0 ||
 	    ioctl(fileno(stdin), TIOCGWINSZ, &w) >= 0) {
-		num_lines = MAX(10, (w.ws_row - 1) / 2 - 1);
+		num_lines = MAX(1, (w.ws_row - 1) / 2 - 1);
 		term_cols = MAX(20, w.ws_col);
 	}
 
@@ -482,7 +482,7 @@ int main(int argc, char **argv)
 			// We allow "-n 0" for disabling the headtail functionality and just go for -w
 			if (num_lines == 0)
 				snip_width = 1;
-			else if (num_lines && num_lines < 10) {
+			else if (num_lines < 1) {
 				usage(argv[0]);
 				exit(EXIT_FAILURE);
 			}
