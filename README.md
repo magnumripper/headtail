@@ -7,9 +7,10 @@ Usage: headtail [OPTION]... [FILE]...
 Options:
   -n <lines> max. number of head and tail lines (default is half terminal height)
   -w         compress horizontally as well: Snip long lines with "(...)"
-  -c <cols>  specify width for -w (default is terminal width)
+  -c <cols>  specify width for -w (minimum 20, default is terminal width)
   -l         show line numbers
   -t <width> set tab width (default 8)
+  -H         parse $HEX[6141] --> aA
   -q         never output filename headers
   -h         this help
 
@@ -28,9 +29,10 @@ lacking it.
 Usage: compcat [OPTION]... [FILE]...
 
 Options:
-  -c <cols>  specify width (default is terminal width)
+  -c <cols>  specify width (minimum 20, default is terminal width)
   -l         show line numbers
   -t <width> set tab width (default 8)
+  -H         parse $HEX[6141] --> aA
   -q         never output filename headers
   -h         this help
 
