@@ -4,7 +4,7 @@
  * Works similar to 'head' and 'tail' on each file but does both at once, even for
  * stdin (which is impossible with head/tail).
  *
- * This code is Copyright (c) 2021 magnum, and it is hereby released to the
+ * This code is Copyright (c) 2021-2025 magnum, and it is hereby released to the
  * general public under the following terms:
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted.
@@ -113,6 +113,24 @@ static char_width width(unsigned char c)
 		return (char_width){ UTF8len[c], 1};
 }
 
+void pack_hex(char **c)
+{
+	if (!parse_hex || strncmp(*c, "$HEX[", 5))
+		return;
+
+	char *h = *c + 5;
+	int len = strspn(h, HEX);
+
+	if ((len % 2) || h[len] != ']')
+		return;
+
+	len /= 2;
+	*c += 6 + len;
+
+	while (len--)
+		(*c)[len] = ((FROM_HEX(h[2 * len]) << 4) | FROM_HEX(h[2 * len + 1]));
+}
+
 static size_t string_width(char *string)
 {
 	char *c = string;
@@ -120,16 +138,7 @@ static size_t string_width(char *string)
 	int col = 0;
 
 	while (*c) {
-		if (parse_hex && !strncmp(c, "$HEX[", 5)) {
-			char *h = &c[5];
-			int len = strspn(h, HEX);
-
-			if (!(len % 2) && h[len] == ']' && (len /= 2)) {
-				c += 6 + len;
-				while (len--)
-					c[len] = ((FROM_HEX(h[2 * len]) << 4) | FROM_HEX(h[2 * len + 1]));
-			}
-		}
+		pack_hex(&c);
 
 		char_width cw = width(*c);
 
@@ -174,16 +183,7 @@ void print_trunc(char *line)
 	while (*c && (!num_cols || col < header_len)) {
 		int sgi = 0;
 
-		if (parse_hex && !strncmp(c, "$HEX[", 5)) {
-			char *h = &c[5];
-			int len = strspn(h, HEX);
-
-			if (!(len % 2) && h[len] == ']' && (len /= 2)) {
-				c += 6 + len;
-				while (len--)
-					c[len] = ((FROM_HEX(h[2 * len]) << 4) | FROM_HEX(h[2 * len + 1]));
-			}
-		}
+		pack_hex(&c);
 
 		char_width cw = width(*c);
 
@@ -228,16 +228,7 @@ void print_trunc(char *line)
 
 		// ...then a more elaborate one
 		while (string_width(c) > trailer_len) {
-			if (parse_hex && !strncmp(c, "$HEX[", 5)) {
-				char *h = &c[5];
-				int len = strspn(h, HEX);
-
-				if (!(len % 2) && h[len] == ']' && (len /= 2)) {
-					c += 6 + len;
-					while (len--)
-						c[len] = ((FROM_HEX(h[2 * len]) << 4) | FROM_HEX(h[2 * len + 1]));
-				}
-			}
+			pack_hex(&c);
 
 			char_width cw = width(*c);
 
@@ -259,16 +250,7 @@ void print_trunc(char *line)
 	while (*c) {
 		int sgi = 0;
 
-		if (parse_hex && !strncmp(c, "$HEX[", 5)) {
-			char *h = &c[5];
-			int len = strspn(h, HEX);
-
-			if (!(len % 2) && h[len] == ']' && (len /= 2)) {
-				c += 6 + len;
-				while (len--)
-					c[len] = ((FROM_HEX(h[2 * len]) << 4) | FROM_HEX(h[2 * len + 1]));
-			}
-		}
+		pack_hex(&c);
 
 		char_width cw = width(*c);
 
@@ -405,7 +387,7 @@ static int head_tail(char *name)
 
 int usage(char *name)
 {
-	printf("(c) magnum 2021\nUsage: %s [OPTION]... [FILE]...\n", name);
+	printf("(c) 2021-2025 magnum\nUsage: %s [OPTION]... [FILE]...\n", name);
 	puts("\nOptions:");
 	if (functionality == HEADTAIL) {
 		puts("  -n <lines> max. number of head and tail lines (default is half terminal height)");
